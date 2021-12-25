@@ -14,7 +14,7 @@ class AutoLogin:
     dropdown_index = None
     username_content_label = None
     password_content_label = None
-    userDetails = None
+    cred_data = None
     login_btn = None
 
     def __init__(self):
@@ -53,9 +53,9 @@ class AutoLogin:
         # Getting file
         file = open("credentials.json")
         allData = json.load(file)
-        AutoLogin.userDetails = allData["userDetails"]
+        AutoLogin.cred_data = allData
         dropdown_values = []
-        for detail in AutoLogin.userDetails:
+        for detail in allData["userDetails"]:
             dropdown_values.append(detail["accountName"])
 
         file.close()
@@ -106,23 +106,34 @@ class AutoLogin:
         pyautogui.hotkey("enter")
 
     def wait_and_login():
-        ssh = win.FindWindow(None, "OpenSSH")
+        counter = 0
+        timeout = AutoLogin.cred_data["timeout"]
+        window_name = AutoLogin.cred_data["windowName"]
+        ssh = win.FindWindow(None, window_name)
         while ssh == 0:
-            time.sleep(1)
-            ssh = win.FindWindow(None, "OpenSSH")
+            if counter < timeout:
+                time.sleep(1)
+                ssh = win.FindWindow(None, window_name)
+                counter = counter + 1
+            else:
+                pyautogui.alert(text="Wait Timed Out: " +
+                                str(timeout)+" seconds", title="Wait Timed Out")
+                return False
+
         AutoLogin.find_window_and_type(ssh, AutoLogin.username)
         time.sleep(1)
-        ssh = win.FindWindow(None, "OpenSSH")
+        ssh = win.FindWindow(None, window_name)
         while ssh == 0:
             time.sleep(1)
-            ssh = win.FindWindow(None, "OpenSSH")
+            ssh = win.FindWindow(None, window_name)
 
         AutoLogin.find_window_and_type(
             ssh, AutoLogin.password)
 
     def combobox_handler(event):
         selected_key = AutoLogin.dropdown_index.get()
-        for detail in AutoLogin.userDetails:
+        userDetails = AutoLogin.cred_data["userDetails"]
+        for detail in userDetails:
             if detail["accountName"] == selected_key:
                 AutoLogin.username_content_label.config(
                     text=detail["username"])
