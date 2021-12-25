@@ -16,7 +16,7 @@ tkinter (tk, ttk)
 json
 ```
 ## Installation
-Download the libraries and the files.
+Install the libraries and download the files.
 
 ## Usage
 
