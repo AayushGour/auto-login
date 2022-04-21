@@ -129,19 +129,36 @@ class AutoLogin:
             main_frame, background=white, pady=0)
         git_commands_btns_frame.pack(side="top")
 
-        # getting list of commands from file
-        row = 0
-        column = 0
+       # getting list of commands from file
+        rowColData = {
+            "other":{
+                "row": 0,
+                "column": 0
+            }
+        }
+        for index, item in enumerate(self.cred_data["sortInColumn"]):
+            rowColData[item] = {
+                "row": 0,
+                "column": index+1
+            }
+
         if(len(self.cred_data["gitCommands"]) > 0):
             for git_command in self.cred_data["gitCommands"]:
+                checker = [element for element in rowColData.keys() if(element in git_command["command"])]
+                checkResult = "".join(checker)
                 name = AutoLogin.get_name(git_command["command"])
-                tk.Button(git_commands_btns_frame, text=name, command=lambda command=git_command["command"], login=git_command["login"]: AutoLogin.git_bash_command_function(
-                    command, login)).grid(row=row, column=column, padx=5, pady=5)
-                if(column == 2):
-                    column = 0
-                    row += 1
+                btn = tk.Button(git_commands_btns_frame, text=name, command=lambda command=git_command["command"], login=git_command["login"]: AutoLogin.git_bash_command_function(
+                    command, login))
+                if(checkResult != ""):
+                    row = rowColData[checkResult]["row"]
+                    column = rowColData[checkResult]["column"]
+                    btn.grid(row=row, column=column, padx=5, pady=5)
+                    rowColData[checkResult]["row"] +=1
                 else:
-                    column += 1
+                    row = rowColData["other"]["row"]
+                    column = rowColData["other"]["column"]
+                    btn.grid(row=row, column=column, padx=5, pady=5)
+                    rowColData["other"]["row"] +=1
 
         # root.geometry("400x300")
         root.mainloop()
