@@ -1,11 +1,14 @@
 from pickle import FALSE
 import time
+from unittest import result
 import pyautogui
 import win32gui as win
 import win32con
 import tkinter as tk
 from tkinter import ttk
 import json
+from selenium import webdriver
+from selenium.webdriver.common.by import By
 
 
 class AutoLogin:
@@ -22,11 +25,17 @@ class AutoLogin:
     window_list = None
     selected_window = None
     git_bash_window_dropdown = None
+    aws_destination = None
+    aws_source = None
+    commit = None
 
     def __init__(self):
         root = tk.Tk()
         AutoLogin.dropdown_index = tk.StringVar()
         AutoLogin.git_bash_window_index = tk.StringVar()
+        AutoLogin.aws_destination = tk.StringVar()
+        AutoLogin.aws_source = tk.StringVar()
+        AutoLogin.commit = tk.StringVar()
         self.root = root
         root.title("Auto Login")
         white = AutoLogin.white
@@ -124,14 +133,45 @@ class AutoLogin:
                               command=AutoLogin.wait_and_login)
         login_btn.pack(side="top")
 
+        # AWS console frame
+        aws_console_frame = tk.Frame(main_frame, background=white, pady=10)
+        aws_console_frame.pack(side="top")
+
+        branches = AutoLogin.cred_data["branches"]
+
+        destination_label = tk.Label(
+            aws_console_frame, text="Destination", bg=white, font=("", 12))
+        destination_label.grid(row=0, column=0, padx=10, pady=5)
+
+        destination_dropdown = tk.OptionMenu(
+            aws_console_frame, AutoLogin.aws_destination, *branches)
+        destination_dropdown.grid(row=0, column=1, padx=10, pady=5)
+
+        source_label = tk.Label(
+            aws_console_frame, text="Source", bg=white, font=("", 12))
+        source_label.grid(row=0, column=2, padx=10, pady=5)
+
+        source_dropdown = tk.OptionMenu(
+            aws_console_frame, AutoLogin.aws_source, *branches)
+        source_dropdown.grid(row=0, column=3, padx=10, pady=5)
+
+        commit_text = tk.Entry(
+            aws_console_frame, textvariable=AutoLogin.commit, highlightthickness=1, highlightbackground="black")
+        commit_text.grid(row=1, column=0, columnspan=2, padx=10, pady=5)
+
+        commit_and_merge_btn = tk.Button(
+            aws_console_frame, text="Commit and Merge", command=lambda: AutoLogin.commit_and_merge_aws_console())
+        commit_and_merge_btn.grid(
+            row=1, column=2, columnspan=2, padx=10, pady=5)
+
         # git commands buttons frame
         git_commands_btns_frame = tk.Frame(
             main_frame, background=white, pady=0)
         git_commands_btns_frame.pack(side="top")
 
-       # getting list of commands from file
+        # getting list of commands from file
         rowColData = {
-            "other":{
+            "other": {
                 "row": 0,
                 "column": 0
             }
@@ -144,7 +184,8 @@ class AutoLogin:
 
         if(len(self.cred_data["gitCommands"]) > 0):
             for git_command in self.cred_data["gitCommands"]:
-                checker = [element for element in rowColData.keys() if(element in git_command["command"])]
+                checker = [element for element in rowColData.keys() if(
+                    element in git_command["command"])]
                 checkResult = "".join(checker)
                 name = AutoLogin.get_name(git_command["command"])
                 btn = tk.Button(git_commands_btns_frame, text=name, command=lambda command=git_command["command"], login=git_command["login"]: AutoLogin.git_bash_command_function(
@@ -153,14 +194,15 @@ class AutoLogin:
                     row = rowColData[checkResult]["row"]
                     column = rowColData[checkResult]["column"]
                     btn.grid(row=row, column=column, padx=5, pady=5)
-                    rowColData[checkResult]["row"] +=1
+                    rowColData[checkResult]["row"] += 1
                 else:
                     row = rowColData["other"]["row"]
                     column = rowColData["other"]["column"]
                     btn.grid(row=row, column=column, padx=5, pady=5)
-                    rowColData["other"]["row"] +=1
+                    rowColData["other"]["row"] += 1
 
-        # root.geometry("400x300")
+                print(checkResult, git_command["command"])
+
         root.mainloop()
 
     def get_name(name):
@@ -264,6 +306,89 @@ class AutoLogin:
     def refresh_git_bash_dropdown_list():
         AutoLogin.git_bash_window_dropdown["values"] = AutoLogin.populate_git_bash_list(
         )
+
+    def commit_and_merge_aws_console():
+        commit_message = AutoLogin.commit.get()
+        commit_command = 'git commit -m "'+ commit_message + '"'
+        AutoLogin.git_bash_command_function("git pull origin development", True)
+        AutoLogin.git_bash_command_function(commit_command, False)
+        AutoLogin.git_bash_command_function("git push", True)
+
+        chrome_options = webdriver.ChromeOptions()
+        chrome_options.add_argument("--incognito")
+
+        url = "https://ap-south-1.console.aws.amazon.com/codesuite/codecommit/repositories/AICOE_FE/browse?region=ap-south-1"
+
+        driver = webdriver.Chrome(
+            "C:\\Users\\agour\\Downloads\\chromedriver_win32\\chromedriver.exe", chrome_options=chrome_options)
+
+        driver.maximize_window()
+        driver.implicitly_wait(10)
+        # Loading URL
+        driver.get(url)
+
+        # General User login IAM
+        driver.find_element(
+            by=By.ID, value="aws-signin-general-user-selection-iam").click()
+        driver.find_element(
+            by=By.ID, value="resolving_input").send_keys("622055726692")
+        driver.find_element(by=By.ID, value="next_button").click()
+        # time.sleep(5)
+        # Credential Login
+        driver.find_element(by=By.ID, value="username").send_keys("aayushG")
+        driver.find_element(by=By.ID, value="password").send_keys(
+            "jRyG'|(x^Xg0puc")
+        driver.find_element(by=By.ID, value="signin_button").click()
+        time.sleep(5)
+
+        # Create Pull Request
+        driver.find_element(
+            by=By.XPATH, value="//*[@id='app']/div/awsui-app-layout/div/main/div/div[2]/div[2]/span/div/div[1]/div/div[2]/awsui-button/a").click()
+        time.sleep(3)
+
+        # Select Development in Destination
+        select1 = driver.find_element(
+            by=By.XPATH, value="//*[@id='awsui-select-1']")
+        select1.click()
+        # select1.send_keys("development")
+        select1.find_element(
+            by=By.XPATH, value='//*[@id="awsui-select-1-dropdown"]/div/ul/li/ul/li/div[@title="'+AutoLogin.aws_destination.get()+'"]').click()
+
+        # Select feat/aayush in source
+        select2 = driver.find_element(
+            by=By.XPATH, value="//*[@id='awsui-select-2']")
+        select2.click()
+        # select2.send_keys("feat/aayush")
+        select2.find_element(
+            by=By.XPATH, value='//*[@id="awsui-select-2-dropdown"]/div/ul/li/ul/li/div[@title="'+AutoLogin.aws_source.get()+'"]').click()
+
+        # Click Compare
+        driver.find_element(
+            by=By.XPATH, value='//*[@id="app"]/div/awsui-app-layout/div/main/div/div[2]/div[2]/span/div/div/form/div/div[4]/awsui-button[1]/button').click()
+
+        # Type in input
+        driver.find_element(
+            by=By.ID, value="awsui-input-5").send_keys(commit_message)
+        time.sleep(3)
+        # Submit Pull Request
+        driver.find_element(
+            by=By.XPATH, value='//*[@id="app"]/div/awsui-app-layout/div/main/div/div[2]/div[2]/span/div/div/div[3]/form/awsui-form/div/div[2]/span/span/awsui-form-section/div/div[1]/div/div/span/div/div/div[2]/awsui-button/button').click()
+
+        # Merge Pull request
+        driver.find_element(
+            by=By.XPATH, value='//*[@id="app"]/div/awsui-app-layout/div/main/div/div[2]/div[2]/span/div/div[1]/div/div[2]/awsui-button[2]/a').click()
+
+        time.sleep(3)
+
+        # Uncheck delete Source branch
+        driver.find_element(
+            by=By.XPATH, value='//*[@id="awsui-checkbox-2"]').click()
+        # Merge request
+        driver.find_element(
+            by=By.XPATH, value='//*[@id="app"]/div/awsui-app-layout/div/main/div/div[2]/div[2]/span/div/form/awsui-form/div/div[4]/span/div/div[1]/awsui-button/button').click()
+
+        time.sleep(5)
+        driver.quit()
 
 
 AutoLogin()
